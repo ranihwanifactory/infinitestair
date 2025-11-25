@@ -1,0 +1,5 @@
+{
+  "name": "Infinite Stair Climber",
+  "description": "A casual, infinite climbing game where players ascend stairs, dodge mistakes, and compete for high scores on the leaderboard.",
+  "requestFramePermissions": []
+}
