@@ -134,9 +134,6 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
     const nextStepDirection = steps[0];
 
     // Check if the move is valid
-    // In this game style, the 'steps' array represents the direction of the step relative to the previous one.
-    // However, for rendering and logic simplicity, let's treat `steps[0]` as "Where the next step IS".
-    
     if (newFacing === nextStepDirection) {
         // Correct Move
         setScore(s => s + 1);
@@ -185,15 +182,16 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
   // Keyboard controls
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'ArrowUp' || e.key === 'z') handleClimb(); // Button A
-        if (e.key === 'ArrowDown' || e.key === 'x') handleTurn(); // Button B
-        // Also support Left/Right if users intuitively want to map them (though less accurate for this mode)
-        // Mapping Left/Right keys to "Turn" and "Climb" can be confusing. 
-        // Let's map Space to Jump/Climb and Shift to Turn? 
-        // Let's stick to Arrow keys for "Screen Side" mapping which is common on PC.
-        // Right side of keyboard = Climb, Left side = Turn.
-        if (e.key === 'ArrowRight') handleClimb();
-        if (e.key === 'ArrowLeft') handleTurn();
+        if (e.repeat) return; // Prevent holding down key
+        
+        // Climb: Up Arrow, Right Arrow, Z
+        if (['ArrowUp', 'ArrowRight', 'z', 'Z'].includes(e.key)) {
+            handleClimb();
+        }
+        // Turn: Down Arrow, Left Arrow, X
+        else if (['ArrowDown', 'ArrowLeft', 'x', 'X'].includes(e.key)) {
+            handleTurn();
+        }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -286,18 +284,13 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
 
         {/* Game World - Fixed Player, Moving World */}
         <div className="flex-1 relative mt-0 overflow-visible">
-            {/* 
-               To simulate the camera following the player, we don't move the player up.
-               We keep the player fixed and render the stairs relative to the player.
-               However, to show the "Climb" animation, we can shift the world down or animate the player briefly.
-             */}
             <div className="absolute inset-0 flex items-end justify-center pb-32 transition-transform duration-75">
                  {renderStairs()}
             </div>
 
             {/* Player */}
             <div 
-                className={`absolute bottom-[160px] left-[calc(50%-32px)] z-30 transition-transform duration-75 ${isAnimating ? 'scale-110 -translate-y-2' : 'scale-100'}`}
+                className={`absolute bottom-[160px] left-[calc(50%-40px)] z-30 transition-transform duration-75 ${isAnimating ? 'scale-110 -translate-y-2' : 'scale-100'}`}
             >
                 <Character 
                     color={characterColor} 
@@ -305,12 +298,6 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
                     isDead={isDead} 
                     className="drop-shadow-2xl"
                 />
-                {/* Visual indicator of facing */}
-                <div className={`absolute top-0 ${playerFacing === 'left' ? '-left-8' : '-right-8'} transition-all duration-100`}>
-                     <div className="bg-white/90 px-2 py-1 rounded-lg text-xs font-bold text-indigo-600 shadow-sm animate-pulse">
-                        {playerFacing === 'left' ? 'LOOK' : 'LOOK'}
-                     </div>
-                </div>
             </div>
             
             {/* Fog/Clouds at bottom */}
@@ -327,7 +314,11 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
                 >
                     <i className="fa-solid fa-arrow-rotate-left text-4xl text-white group-hover:scale-110 transition-transform"></i>
                     <span className="font-black text-white uppercase tracking-wider text-sm">Turn</span>
-                    <span className="text-[10px] text-indigo-200">Switch & Climb</span>
+                    <div className="flex gap-2 text-[10px] text-indigo-200 bg-black/20 px-2 py-1 rounded">
+                         <span><i className="fa-solid fa-arrow-left"></i> Left</span>
+                         <span><i className="fa-solid fa-arrow-down"></i> Down</span>
+                         <span className="font-bold border border-indigo-200/30 px-1 rounded">X</span>
+                    </div>
                 </button>
 
                 {/* Climb Button */}
@@ -336,12 +327,16 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
                     onPointerDown={(e) => { e.preventDefault(); handleClimb(); }}
                 >
                      <i className="fa-solid fa-shoe-prints text-4xl text-white group-hover:scale-110 transition-transform -rotate-90"></i>
-                     <span className="font-black text-white uppercase tracking-wider text-sm">Jump</span>
-                     <span className="text-[10px] text-pink-200">Climb Up</span>
+                     <span className="font-black text-white uppercase tracking-wider text-sm">Climb</span>
+                     <div className="flex gap-2 text-[10px] text-pink-200 bg-black/20 px-2 py-1 rounded">
+                         <span><i className="fa-solid fa-arrow-right"></i> Right</span>
+                         <span><i className="fa-solid fa-arrow-up"></i> Up</span>
+                         <span className="font-bold border border-pink-200/30 px-1 rounded">Z</span>
+                    </div>
                 </button>
             </div>
-            <div className="text-center mt-2 text-white/60 text-xs font-semibold">
-                Tap buttons or use Arrow Keys
+            <div className="text-center mt-2 text-white/80 text-xs font-semibold drop-shadow-md">
+                Desktop Controls Enabled
             </div>
         </div>
 
