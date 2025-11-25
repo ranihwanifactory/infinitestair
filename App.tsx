@@ -11,6 +11,7 @@ function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [gameState, setGameState] = useState<GameState>('auth');
   const [characterColor, setCharacterColor] = useState('#F87171'); // Default Red
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -29,12 +30,35 @@ function App() {
       }
     });
 
-    return () => unsubscribe();
+    // PWA Install Prompt Listener
+    const handleBeforeInstallPrompt = (e: Event) => {
+      // Prevent the mini-infobar from appearing on mobile
+      e.preventDefault();
+      // Stash the event so it can be triggered later.
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
   }, []);
 
   const handleLogout = async () => {
     await signOut(auth);
     setGameState('auth');
+  };
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    // Show the install prompt
+    deferredPrompt.prompt();
+    // Wait for the user to respond to the prompt
+    const { outcome } = await deferredPrompt.userChoice;
+    // We've used the prompt, and can't use it again, throw it away
+    setDeferredPrompt(null);
   };
 
   return (
@@ -51,6 +75,8 @@ function App() {
           onStart={() => setGameState('playing')}
           onShowLeaderboard={() => setGameState('leaderboard')}
           onLogout={handleLogout}
+          showInstallButton={!!deferredPrompt}
+          onInstall={handleInstallClick}
         />
       )}
 

@@ -9,6 +9,8 @@ interface MainMenuProps {
   onStart: () => void;
   onShowLeaderboard: () => void;
   onLogout: () => void;
+  showInstallButton: boolean;
+  onInstall: () => void;
 }
 
 const COLORS = [
@@ -28,8 +30,29 @@ export const MainMenu: React.FC<MainMenuProps> = ({
   onColorChange, 
   onStart, 
   onShowLeaderboard,
-  onLogout 
+  onLogout,
+  showInstallButton,
+  onInstall
 }) => {
+  
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Infinite Stair Climber',
+          text: 'Come join me on Infinite Stair Climber! Can you beat my high score?',
+          url: window.location.href,
+        });
+      } catch (error) {
+        console.log('Error sharing:', error);
+      }
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      // Could show a toast here, but for simplicity:
+      alert('Game link copied to clipboard!');
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-sky-50 relative overflow-hidden">
         {/* Background Patterns */}
@@ -50,15 +73,20 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             <span className="text-sm font-bold text-slate-800 truncate max-w-[150px]">{user.displayName || user.email?.split('@')[0]}</span>
           </div>
         </div>
-        <button onClick={onLogout} className="text-slate-400 hover:text-slate-600">
-          <i className="fa-solid fa-right-from-bracket text-xl"></i>
-        </button>
+        <div className="flex gap-2">
+          <button onClick={handleShare} className="w-10 h-10 rounded-full bg-white text-indigo-500 shadow-sm flex items-center justify-center hover:bg-indigo-50 transition-colors">
+            <i className="fa-solid fa-share-nodes"></i>
+          </button>
+          <button onClick={onLogout} className="w-10 h-10 rounded-full bg-white text-slate-400 shadow-sm flex items-center justify-center hover:text-red-500 hover:bg-red-50 transition-colors">
+            <i className="fa-solid fa-right-from-bracket"></i>
+          </button>
+        </div>
       </header>
 
-      <main className="flex-1 flex flex-col items-center justify-center z-10 p-4 gap-8">
+      <main className="flex-1 flex flex-col items-center justify-center z-10 p-4 gap-6">
         
         {/* Character Preview */}
-        <div className="relative group cursor-pointer" onClick={onStart}>
+        <div className="relative group cursor-pointer py-4" onClick={onStart}>
              <div className="absolute inset-0 bg-white/50 rounded-full blur-2xl transform group-hover:scale-110 transition-transform"></div>
              <Character color={selectedColor} facing="right" className="transform scale-150 group-hover:-translate-y-2 transition-transform" />
         </div>
@@ -82,7 +110,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
           ))}
         </div>
 
-        <div className="w-full max-w-xs space-y-4">
+        <div className="w-full max-w-xs space-y-3">
           <button
             onClick={onStart}
             className="w-full bg-green-500 hover:bg-green-600 text-white text-xl font-black py-4 px-8 rounded-2xl shadow-[0_6px_0_0_rgba(22,163,74,1)] active:shadow-none active:translate-y-[6px] transition-all flex items-center justify-center gap-3"
@@ -96,6 +124,15 @@ export const MainMenu: React.FC<MainMenuProps> = ({
           >
              <i className="fa-solid fa-trophy"></i> LEADERBOARD
           </button>
+
+          {showInstallButton && (
+             <button
+              onClick={onInstall}
+              className="w-full bg-slate-800 hover:bg-slate-900 text-white text-sm font-bold py-3 px-8 rounded-2xl shadow-[0_4px_0_0_rgba(15,23,42,1)] active:shadow-none active:translate-y-[4px] transition-all flex items-center justify-center gap-2"
+            >
+              <i className="fa-solid fa-download"></i> INSTALL APP
+            </button>
+          )}
         </div>
 
       </main>
