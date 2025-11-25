@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { UserProfile, Direction } from '../types';
 import { Character } from './Character';
 import { db } from '../services/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, getDoc, setDoc } from 'firebase/firestore';
 
 interface GameProps {
   user: UserProfile;
@@ -62,6 +62,7 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
   const [timer, setTimer] = useState(INITIAL_TIME);
   const [isDead, setIsDead] = useState(false);
   const [steps, setSteps] = useState<Direction[]>([]); // The visible stair path
+  const [pastSteps, setPastSteps] = useState<Direction[]>([]); // Stairs we have passed
   const [playerFacing, setPlayerFacing] = useState<Direction>('right');
   const [isAnimating, setIsAnimating] = useState(false);
   
@@ -85,6 +86,7 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
         initialSteps.push(currentDir);
     }
     setSteps(initialSteps);
+    setPastSteps([]);
     setTimer(100);
     setScore(0);
     setIsDead(false);
@@ -116,15 +118,29 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
     setIsDead(true);
     playSound('gameover');
     
-    // Save score
+    // Save score (Only if higher than previous)
     try {
-      await addDoc(collection(db, "scores"), {
+      const userScoreRef = doc(db, "scores", user.uid);
+      const docSnap = await getDoc(userScoreRef);
+
+      const newScoreData = {
         uid: user.uid,
         displayName: user.displayName || user.email?.split('@')[0] || "Anonymous",
         score: score,
         characterColor: characterColor,
         timestamp: serverTimestamp()
-      });
+      };
+
+      if (docSnap.exists()) {
+        const currentHighScore = docSnap.data().score;
+        if (score > currentHighScore) {
+            // New record!
+            await setDoc(userScoreRef, newScoreData);
+        }
+      } else {
+        // First time playing
+        await setDoc(userScoreRef, newScoreData);
+      }
     } catch (e) {
       console.error("Error saving score", e);
     }
@@ -143,7 +159,10 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
         setIsAnimating(true);
         setTimeout(() => setIsAnimating(false), 50);
 
-        // Update stairs: Remove current, add new at end
+        // Update past steps (Add the step we just took to history)
+        setPastSteps(prev => [nextStepDirection, ...prev].slice(0, 8)); // Keep last 8 steps
+
+        // Update steps: Remove current, add new at end
         setSteps(prev => {
             const next = prev.slice(1);
             let lastDir = next[next.length - 1];
@@ -203,14 +222,41 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
     let currentY = 0;
     const elements = [];
 
-    // The starting platform
+    // 1. Render PAST steps (Going down and away)
+    let backX = 0;
+    let backY = 0;
+    pastSteps.forEach((dir, index) => {
+        // Inverse logic: If we moved RIGHT to get here, the previous block is LEFT
+        if (dir === 'left') {
+            backX += 60;
+        } else {
+            backX -= 60;
+        }
+        backY -= 50;
+
+        elements.push(
+            <div 
+                key={`past-${index}`}
+                className={`absolute w-[80px] h-[40px] bg-white/80 border-4 border-slate-200 rounded-lg shadow-sm transition-all duration-100
+                    ${dir === 'left' ? 'rounded-tr-none' : 'rounded-tl-none'}
+                `}
+                style={{ 
+                    bottom: `${120 + backY}px`, 
+                    left: `calc(50% - 40px + ${backX}px)`,
+                    zIndex: 10 - index,
+                    opacity: Math.max(0, 1 - (index * 0.2)) // Fade out
+                }}
+            />
+        );
+    });
+
+    // 2. The Current Platform (Under player feet)
     elements.push(
-        <div key="start" className="absolute w-[80px] h-[40px] bg-slate-100 border-4 border-slate-300 rounded-lg shadow-lg"
+        <div key="current" className="absolute w-[80px] h-[40px] bg-slate-100 border-4 border-slate-300 rounded-lg shadow-lg"
              style={{ bottom: '120px', left: 'calc(50% - 40px)', zIndex: 20 }} />
     );
 
-    // Render upcoming steps
-    // We only render a certain amount to keep DOM light
+    // 3. Render FUTURE steps
     steps.slice(0, 10).forEach((dir, index) => {
         if (dir === 'left') {
             currentX -= 60; // Move Left
@@ -221,7 +267,7 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
 
         elements.push(
             <div 
-                key={index} 
+                key={`future-${index}`} 
                 className={`absolute w-[80px] h-[40px] bg-white border-4 rounded-lg shadow-lg transition-all duration-100 
                   ${dir === 'left' ? 'rounded-tr-none' : 'rounded-tl-none'}
                   border-indigo-100
@@ -229,7 +275,7 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
                 style={{ 
                     bottom: `${120 + currentY}px`, 
                     left: `calc(50% - 40px + ${currentX}px)`,
-                    zIndex: 20 - index
+                    zIndex: 20 - index // Stack properly
                 }}
             >
               {/* Stair Top Pattern */}
