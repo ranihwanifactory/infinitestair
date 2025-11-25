@@ -251,36 +251,44 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
   const renderStairs = () => {
     const elements = [];
 
+    // STAIR CONFIGURATION (Smaller and thinner)
+    const STAIR_WIDTH = 'w-16'; // 64px
+    const STAIR_HEIGHT = 'h-6'; // 24px
+    const SIDE_HEIGHT = 'h-3'; // 12px (Thin)
+    const X_DELTA = 40;
+    const Y_DELTA = 32;
+    const START_BOTTOM = 120;
+
     // --- PAST STEPS (Fade out) ---
     let backX = 0;
     let backY = 0;
     uiPastSteps.forEach((dir, index) => {
-        if (dir === 'left') backX += 50;
-        else backX -= 50;
-        backY -= 50;
+        if (dir === 'left') backX += X_DELTA;
+        else backX -= X_DELTA;
+        backY -= Y_DELTA;
 
         elements.push(
             <div 
                 key={`past-${index}`}
-                className="absolute w-[80px] h-[30px] bg-slate-100 transition-all duration-75"
+                className={`absolute ${STAIR_WIDTH} ${STAIR_HEIGHT} bg-slate-100 transition-all duration-75`}
                 style={{ 
-                    bottom: `${120 + backY}px`, 
-                    left: `calc(50% - 40px + ${backX}px)`,
+                    bottom: `${START_BOTTOM + backY}px`, 
+                    left: `calc(50% - 32px + ${backX}px)`,
                     zIndex: 10 - index,
                     opacity: Math.max(0, 1 - (index * 0.25))
                 }}
             >
                {/* 3D Side Face */}
-               <div className="absolute top-[30px] left-0 w-full h-[50px] bg-slate-300"></div>
+               <div className={`absolute top-[24px] left-0 w-full ${SIDE_HEIGHT} bg-slate-300`}></div>
             </div>
         );
     });
 
     // --- CURRENT PLATFORM ---
     elements.push(
-        <div key="current" className="absolute w-[80px] h-[30px] bg-slate-200"
-             style={{ bottom: '120px', left: 'calc(50% - 40px)', zIndex: 20 }}>
-             <div className="absolute top-[30px] left-0 w-full h-[50px] bg-slate-400"></div>
+        <div key="current" className={`absolute ${STAIR_WIDTH} ${STAIR_HEIGHT} bg-slate-200`}
+             style={{ bottom: `${START_BOTTOM}px`, left: 'calc(50% - 32px)', zIndex: 20 }}>
+             <div className={`absolute top-[24px] left-0 w-full ${SIDE_HEIGHT} bg-slate-400`}></div>
         </div>
     );
 
@@ -288,23 +296,23 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
     let currentX = 0;
     let currentY = 0;
     uiSteps.slice(0, 12).forEach((dir, index) => {
-        if (dir === 'left') currentX -= 50;
-        else currentX += 50;
-        currentY += 50;
+        if (dir === 'left') currentX -= X_DELTA;
+        else currentX += X_DELTA;
+        currentY += Y_DELTA;
 
         elements.push(
             <div 
                 key={`future-${index}`} 
-                className="absolute w-[80px] h-[30px] bg-white transition-all duration-75"
+                className={`absolute ${STAIR_WIDTH} ${STAIR_HEIGHT} bg-white transition-all duration-75`}
                 style={{ 
-                    bottom: `${120 + currentY}px`, 
-                    left: `calc(50% - 40px + ${currentX}px)`,
+                    bottom: `${START_BOTTOM + currentY}px`, 
+                    left: `calc(50% - 32px + ${currentX}px)`,
                     zIndex: 20 - index
                 }}
             >
               <div className="w-full h-full bg-white border-t-2 border-indigo-100/50"></div>
               {/* 3D Side Face - Darker to show depth */}
-              <div className="absolute top-[30px] left-0 w-full h-[50px] bg-slate-200 border-b border-slate-300"></div>
+              <div className={`absolute top-[24px] left-0 w-full ${SIDE_HEIGHT} bg-slate-200 border-b border-slate-300`}></div>
             </div>
         );
     });
@@ -353,8 +361,11 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
             </div>
 
             {/* Player */}
+            {/* Positioned on top of the starting platform (120px + 24px = 144px). 
+                Added slightly more (148px) to account for feet. 
+                Scaled down to 90% to fit the smaller 64px wide stairs better. */}
             <div 
-                className={`absolute bottom-[160px] left-[calc(50%-40px)] z-40 transition-transform duration-75 ${isAnimating ? 'scale-105 -translate-y-1' : 'scale-100'}`}
+                className={`absolute bottom-[148px] left-[calc(50%-40px)] z-40 transition-transform duration-75 origin-bottom ${isAnimating ? 'scale-[0.95] -translate-y-1' : 'scale-90'}`}
             >
                 <Character 
                     color={characterColor} 
