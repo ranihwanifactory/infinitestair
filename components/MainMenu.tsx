@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { UserProfile } from '../types';
 import { Character } from './Character';
+import { db } from '../services/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 interface MainMenuProps {
   user: UserProfile;
@@ -34,13 +36,29 @@ export const MainMenu: React.FC<MainMenuProps> = ({
   showInstallButton,
   onInstall
 }) => {
-  
+  const [highScore, setHighScore] = useState<number>(0);
+
+  useEffect(() => {
+    const fetchHighScore = async () => {
+      try {
+        const docRef = doc(db, "scores", user.uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setHighScore(docSnap.data().score || 0);
+        }
+      } catch (e) {
+        console.error("Error fetching high score", e);
+      }
+    };
+    fetchHighScore();
+  }, [user.uid]);
+
   const handleShare = async () => {
     if (navigator.share) {
       try {
         await navigator.share({
           title: 'Infinite Stair Climber',
-          text: 'Come join me on Infinite Stair Climber! Can you beat my high score?',
+          text: `I scored ${highScore} on Infinite Stair Climber! Can you beat me?`,
           url: window.location.href,
         });
       } catch (error) {
@@ -48,7 +66,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({
       }
     } else {
       navigator.clipboard.writeText(window.location.href);
-      // Could show a toast here, but for simplicity:
       alert('Game link copied to clipboard!');
     }
   };
@@ -69,7 +86,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             </div>
           )}
           <div className="flex flex-col">
-            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Welcome</span>
+            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Player</span>
             <span className="text-sm font-bold text-slate-800 truncate max-w-[150px]">{user.displayName || user.email?.split('@')[0]}</span>
           </div>
         </div>
@@ -83,46 +100,51 @@ export const MainMenu: React.FC<MainMenuProps> = ({
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col items-center justify-center z-10 p-4 gap-6">
+      <main className="flex-1 flex flex-col items-center justify-center z-10 p-4 gap-4">
         
+        {/* High Score Badge */}
+        <div className="bg-white/80 backdrop-blur-md px-6 py-2 rounded-2xl border border-white shadow-sm flex flex-col items-center animate-fade-in">
+           <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Best Score</span>
+           <span className="text-3xl font-black text-indigo-600">{highScore}</span>
+        </div>
+
         {/* Character Preview */}
-        <div className="relative group cursor-pointer py-4" onClick={onStart}>
+        <div className="relative group cursor-pointer py-6" onClick={onStart}>
              <div className="absolute inset-0 bg-white/50 rounded-full blur-2xl transform group-hover:scale-110 transition-transform"></div>
              <Character color={selectedColor} facing="right" className="transform scale-150 group-hover:-translate-y-2 transition-transform" />
         </div>
 
-        <div className="text-center space-y-2">
-          <h2 className="text-2xl font-black text-slate-800">Choose Your Hero</h2>
-          <p className="text-slate-500">Tap a color to select</p>
+        <div className="text-center space-y-1">
+          <h2 className="text-xl font-black text-slate-800">Select Character</h2>
         </div>
 
         {/* Color Grid */}
-        <div className="grid grid-cols-4 gap-4 p-4 bg-white/60 backdrop-blur-sm rounded-3xl border border-white/50 shadow-xl">
+        <div className="grid grid-cols-4 gap-3 p-4 bg-white/60 backdrop-blur-sm rounded-3xl border border-white/50 shadow-xl max-w-xs">
           {COLORS.map((color) => (
             <button
               key={color}
               onClick={() => onColorChange(color)}
-              className={`w-12 h-12 rounded-xl transition-transform transform hover:scale-110 flex items-center justify-center ${selectedColor === color ? 'ring-4 ring-offset-2 ring-indigo-500 scale-110' : ''}`}
+              className={`w-10 h-10 rounded-xl transition-transform transform hover:scale-110 flex items-center justify-center ${selectedColor === color ? 'ring-4 ring-offset-2 ring-indigo-500 scale-110' : ''}`}
               style={{ backgroundColor: color }}
             >
-              {selectedColor === color && <i className="fa-solid fa-check text-white text-lg drop-shadow-md"></i>}
+              {selectedColor === color && <i className="fa-solid fa-check text-white text-sm drop-shadow-md"></i>}
             </button>
           ))}
         </div>
 
-        <div className="w-full max-w-xs space-y-3">
+        <div className="w-full max-w-xs space-y-3 mt-4">
           <button
             onClick={onStart}
-            className="w-full bg-green-500 hover:bg-green-600 text-white text-xl font-black py-4 px-8 rounded-2xl shadow-[0_6px_0_0_rgba(22,163,74,1)] active:shadow-none active:translate-y-[6px] transition-all flex items-center justify-center gap-3"
+            className="w-full bg-green-500 hover:bg-green-600 text-white text-xl font-black py-4 px-8 rounded-2xl shadow-[0_6px_0_0_rgba(22,163,74,1)] active:shadow-none active:translate-y-[6px] transition-all flex items-center justify-center gap-3 group"
           >
-            <i className="fa-solid fa-play"></i> START GAME
+            <i className="fa-solid fa-play group-hover:scale-110 transition-transform"></i> PLAY
           </button>
           
           <button
             onClick={onShowLeaderboard}
             className="w-full bg-indigo-500 hover:bg-indigo-600 text-white text-lg font-bold py-3 px-8 rounded-2xl shadow-[0_4px_0_0_rgba(79,70,229,1)] active:shadow-none active:translate-y-[4px] transition-all flex items-center justify-center gap-3"
           >
-             <i className="fa-solid fa-trophy"></i> LEADERBOARD
+             <i className="fa-solid fa-trophy"></i> RANKING
           </button>
 
           {showInstallButton && (
