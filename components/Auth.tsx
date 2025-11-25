@@ -44,7 +44,7 @@ export const Auth: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
           className="w-full bg-white border-2 border-slate-200 hover:bg-slate-50 text-slate-700 font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-3 transition-all transform active:scale-95 mb-6"
         >
           <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-6 h-6" alt="Google" />
-          Play with Google
+          Google로 계속하기
         </button>
 
         <div className="relative mb-6">
@@ -52,13 +52,13 @@ export const Auth: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
             <div className="w-full border-t border-slate-200"></div>
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white text-slate-400">Or with Email</span>
+            <span className="px-2 bg-white text-slate-400">또는 이메일로 계속하기</span>
           </div>
         </div>
 
         <form onSubmit={handleEmailAuth} className="space-y-4">
           <div>
-            <label className="block text-sm font-bold text-slate-600 mb-1">Email</label>
+            <label className="block text-sm font-bold text-slate-600 mb-1">이메일</label>
             <input
               type="email"
               required
@@ -69,7 +69,7 @@ export const Auth: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
             />
           </div>
           <div>
-            <label className="block text-sm font-bold text-slate-600 mb-1">Password</label>
+            <label className="block text-sm font-bold text-slate-600 mb-1">비밀번호</label>
             <input
               type="password"
               required
@@ -90,7 +90,7 @@ export const Auth: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
             type="submit"
             className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-indigo-200 transition-all transform active:scale-95 active:shadow-none translate-y-0"
           >
-            {isRegistering ? 'Create Account' : 'Sign In'}
+            {isRegistering ? '계정 생성' : '로그인'}
           </button>
         </form>
 
@@ -98,7 +98,7 @@ export const Auth: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
           onClick={() => setIsRegistering(!isRegistering)}
           className="w-full text-center mt-4 text-sm text-indigo-500 hover:text-indigo-700 font-semibold"
         >
-          {isRegistering ? 'Already have an account? Sign In' : 'Need an account? Sign Up'}
+          {isRegistering ? '이미 계정이 있으신가요? 로그인' : '계정이 필요하신가요? 회원가입'}
         </button>
       </div>
     </div>

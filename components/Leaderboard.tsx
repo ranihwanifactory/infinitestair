@@ -38,7 +38,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ onBack }) => {
             <button onClick={onBack} className="w-10 h-10 flex items-center justify-center bg-indigo-500 rounded-full hover:bg-indigo-400 transition-colors shadow-sm">
                 <i className="fa-solid fa-arrow-left"></i>
             </button>
-            <h2 className="text-2xl font-black italic tracking-wide">HALL OF FAME</h2>
+            <h2 className="text-2xl font-black italic tracking-wide">명예의 전당</h2>
         </div>
       </div>
 
@@ -46,7 +46,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ onBack }) => {
         {loading ? (
           <div className="flex flex-col items-center justify-center h-64 text-indigo-400">
              <i className="fa-solid fa-circle-notch fa-spin text-4xl mb-4"></i>
-             <p className="font-bold">Loading Rankings...</p>
+             <p className="font-bold">랭킹 불러오는 중...</p>
           </div>
         ) : (
           scores.map((entry, index) => (
@@ -72,7 +72,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ onBack }) => {
                     <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: entry.characterColor }}></div>
                     <h3 className="font-bold text-slate-800 truncate text-lg">{entry.displayName}</h3>
                 </div>
-                <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">{index === 0 ? 'Champion' : `Rank ${index + 1}`}</p>
+                <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">{index === 0 ? '챔피언' : `${index + 1}위`}</p>
               </div>
 
               <div className="text-3xl font-black text-indigo-600 tracking-tighter">
@@ -87,8 +87,8 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ onBack }) => {
                 <div className="w-20 h-20 bg-slate-200 rounded-full flex items-center justify-center mx-auto mb-4">
                     <i className="fa-solid fa-trophy text-3xl text-slate-400"></i>
                 </div>
-                <p className="font-bold">No records yet.</p>
-                <p className="text-sm">Be the first to claim the throne!</p>
+                <p className="font-bold">아직 기록이 없습니다.</p>
+                <p className="text-sm">첫 번째 주인공이 되어보세요!</p>
             </div>
         )}
       </div>

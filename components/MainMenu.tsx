@@ -54,19 +54,21 @@ export const MainMenu: React.FC<MainMenuProps> = ({
   }, [user.uid]);
 
   const handleShare = async () => {
+    const shareData = {
+      title: '무한의 계단',
+      text: `무한의 계단에서 ${highScore}점을 기록했습니다! 저를 이길 수 있나요?`,
+      url: window.location.href,
+    };
+
     if (navigator.share) {
       try {
-        await navigator.share({
-          title: 'Infinite Stair Climber',
-          text: `I scored ${highScore} on Infinite Stair Climber! Can you beat me?`,
-          url: window.location.href,
-        });
+        await navigator.share(shareData);
       } catch (error) {
         console.log('Error sharing:', error);
       }
     } else {
       navigator.clipboard.writeText(window.location.href);
-      alert('Game link copied to clipboard!');
+      alert('게임 링크가 복사되었습니다!');
     }
   };
 
@@ -86,7 +88,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             </div>
           )}
           <div className="flex flex-col">
-            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Player</span>
+            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">플레이어</span>
             <span className="text-sm font-bold text-slate-800 truncate max-w-[150px]">{user.displayName || user.email?.split('@')[0]}</span>
           </div>
         </div>
@@ -104,7 +106,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
         
         {/* High Score Badge */}
         <div className="bg-white/80 backdrop-blur-md px-6 py-2 rounded-2xl border border-white shadow-sm flex flex-col items-center animate-fade-in">
-           <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Best Score</span>
+           <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">최고 점수</span>
            <span className="text-3xl font-black text-indigo-600">{highScore}</span>
         </div>
 
@@ -115,7 +117,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
         </div>
 
         <div className="text-center space-y-1">
-          <h2 className="text-xl font-black text-slate-800">Select Character</h2>
+          <h2 className="text-xl font-black text-slate-800">캐릭터 선택</h2>
         </div>
 
         {/* Color Grid */}
@@ -137,14 +139,14 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             onClick={onStart}
             className="w-full bg-green-500 hover:bg-green-600 text-white text-xl font-black py-4 px-8 rounded-2xl shadow-[0_6px_0_0_rgba(22,163,74,1)] active:shadow-none active:translate-y-[6px] transition-all flex items-center justify-center gap-3 group"
           >
-            <i className="fa-solid fa-play group-hover:scale-110 transition-transform"></i> PLAY
+            <i className="fa-solid fa-play group-hover:scale-110 transition-transform"></i> 게임 시작
           </button>
           
           <button
             onClick={onShowLeaderboard}
             className="w-full bg-indigo-500 hover:bg-indigo-600 text-white text-lg font-bold py-3 px-8 rounded-2xl shadow-[0_4px_0_0_rgba(79,70,229,1)] active:shadow-none active:translate-y-[4px] transition-all flex items-center justify-center gap-3"
           >
-             <i className="fa-solid fa-trophy"></i> RANKING
+             <i className="fa-solid fa-trophy"></i> 랭킹 보기
           </button>
 
           {showInstallButton && (
@@ -152,7 +154,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
               onClick={onInstall}
               className="w-full bg-slate-800 hover:bg-slate-900 text-white text-sm font-bold py-3 px-8 rounded-2xl shadow-[0_4px_0_0_rgba(15,23,42,1)] active:shadow-none active:translate-y-[4px] transition-all flex items-center justify-center gap-2"
             >
-              <i className="fa-solid fa-download"></i> INSTALL APP
+              <i className="fa-solid fa-download"></i> 앱 설치하기
             </button>
           )}
         </div>

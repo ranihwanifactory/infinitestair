@@ -152,7 +152,7 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
 
       const newScoreData = {
         uid: user.uid,
-        displayName: user.displayName || user.email?.split('@')[0] || "Anonymous",
+        displayName: user.displayName || user.email?.split('@')[0] || "익명",
         score: finalScore,
         characterColor: characterColor,
         timestamp: serverTimestamp()
@@ -343,7 +343,7 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
             <div className="flex justify-between items-start">
                  {/* Best Score (Small) */}
                  <div className="bg-slate-800/50 backdrop-blur-md px-3 py-1 rounded-lg border border-slate-700">
-                    <span className="text-xs font-bold text-slate-300 uppercase">Best Score</span>
+                    <span className="text-xs font-bold text-slate-300 uppercase">최고 점수</span>
                  </div>
                  
                  {/* Current Score (Big) */}
@@ -395,7 +395,7 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
                     <div className="bg-indigo-800/50 p-2 rounded-full mb-1 group-hover:scale-110 transition-transform">
                         <i className="fa-solid fa-arrow-rotate-left text-2xl text-white"></i>
                     </div>
-                    <span className="font-black text-white uppercase text-lg tracking-wider">Turn</span>
+                    <span className="font-black text-white uppercase text-lg tracking-wider">방향전환</span>
                 </button>
 
                 {/* Climb Button (Right) */}
@@ -406,14 +406,14 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
                      <div className="bg-pink-800/50 p-2 rounded-full mb-1 group-hover:scale-110 transition-transform">
                         <i className="fa-solid fa-shoe-prints text-2xl text-white -rotate-90"></i>
                     </div>
-                    <span className="font-black text-white uppercase text-lg tracking-wider">Climb</span>
+                    <span className="font-black text-white uppercase text-lg tracking-wider">오르기</span>
                 </button>
             </div>
             
             {/* Keyboard Hints */}
             <div className="flex justify-between px-8 mt-2 text-white/40 text-xs font-bold">
-                 <span>[X] or [Left]</span>
-                 <span>[Z] or [Right]</span>
+                 <span>[X] 또는 [←]</span>
+                 <span>[Z] 또는 [→]</span>
             </div>
         </div>
 
@@ -421,10 +421,10 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
         {isDead && (
             <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in p-6">
                 <div className="bg-slate-900 border border-slate-700 p-6 rounded-3xl shadow-2xl text-center w-full max-w-sm animate-shake">
-                    <h2 className="text-4xl font-black text-white mb-2 italic">GAME OVER</h2>
+                    <h2 className="text-4xl font-black text-white mb-2 italic">게임 오버</h2>
                     
                     <div className="bg-slate-800 rounded-2xl p-6 mb-6 border border-slate-700">
-                        <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Score</div>
+                        <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">점수</div>
                         <div className="text-7xl font-black text-indigo-400 tracking-tighter">{uiScore}</div>
                     </div>
                     
@@ -433,13 +433,13 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
                             onClick={() => { playSound('jump'); onGameOver(); }}
                             className="w-full bg-green-600 text-white font-bold py-4 px-8 rounded-xl shadow-[0_4px_0_0_rgba(22,163,74,1)] hover:bg-green-500 active:shadow-none active:translate-y-[4px] transition-all flex items-center justify-center gap-2 text-lg"
                         >
-                            <i className="fa-solid fa-rotate-right"></i> RETRY
+                            <i className="fa-solid fa-rotate-right"></i> 다시하기
                         </button>
                         <button 
                             onClick={onGameOver}
                             className="w-full bg-slate-700 text-slate-300 font-bold py-3 px-8 rounded-xl hover:bg-slate-600 transition-all"
                         >
-                            Main Menu
+                            메인 메뉴
                         </button>
                     </div>
                 </div>
