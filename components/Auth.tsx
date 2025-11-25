@@ -33,10 +33,10 @@ export const Auth: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-full p-6 animate-fade-in">
+    <div className="flex flex-col items-center justify-center h-full p-6 animate-fade-in bg-slate-50">
       <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md border-b-8 border-slate-100">
         <h1 className="text-3xl font-black text-center mb-6 text-indigo-600 tracking-tight">
-          INFINITE STAIRS
+          무한의 계단
         </h1>
         
         <button
@@ -64,7 +64,7 @@ export const Auth: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:outline-none transition-colors"
+              className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:outline-none transition-colors text-slate-800"
               placeholder="player@example.com"
             />
           </div>
@@ -75,7 +75,7 @@ export const Auth: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:outline-none transition-colors"
+              className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:outline-none transition-colors text-slate-800"
               placeholder="••••••••"
             />
           </div>
