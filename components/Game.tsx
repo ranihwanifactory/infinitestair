@@ -77,11 +77,12 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
   const [isDead, setIsDead] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
 
-  // Background gradient based on score
+  // Background gradient - Dark Mode Theme
   const getBackgroundClass = () => {
-    if (uiScore < 50) return 'bg-gradient-to-b from-sky-300 to-blue-200';
-    if (uiScore < 100) return 'bg-gradient-to-b from-indigo-400 to-purple-300';
-    return 'bg-gradient-to-b from-slate-900 via-indigo-900 to-purple-900';
+    // Progressive dark themes
+    if (uiScore < 50) return 'bg-gradient-to-b from-slate-900 to-indigo-950';
+    if (uiScore < 100) return 'bg-gradient-to-b from-indigo-950 to-purple-950';
+    return 'bg-gradient-to-b from-black via-slate-900 to-black';
   };
 
   // Initialize Game
@@ -270,25 +271,26 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
         elements.push(
             <div 
                 key={`past-${index}`}
-                className={`absolute ${STAIR_WIDTH} ${STAIR_HEIGHT} bg-slate-100 transition-all duration-75`}
+                className={`absolute ${STAIR_WIDTH} ${STAIR_HEIGHT} bg-slate-700 transition-all duration-75`}
                 style={{ 
                     bottom: `${START_BOTTOM + backY}px`, 
                     left: `calc(50% - 32px + ${backX}px)`,
                     zIndex: 10 - index,
-                    opacity: Math.max(0, 1 - (index * 0.25))
+                    opacity: Math.max(0, 0.6 - (index * 0.15))
                 }}
             >
                {/* 3D Side Face */}
-               <div className={`absolute top-[24px] left-0 w-full ${SIDE_HEIGHT} bg-slate-300`}></div>
+               <div className={`absolute top-[24px] left-0 w-full ${SIDE_HEIGHT} bg-slate-800`}></div>
             </div>
         );
     });
 
     // --- CURRENT PLATFORM ---
     elements.push(
-        <div key="current" className={`absolute ${STAIR_WIDTH} ${STAIR_HEIGHT} bg-slate-200`}
+        <div key="current" className={`absolute ${STAIR_WIDTH} ${STAIR_HEIGHT} bg-yellow-400`}
              style={{ bottom: `${START_BOTTOM}px`, left: 'calc(50% - 32px)', zIndex: 20 }}>
-             <div className={`absolute top-[24px] left-0 w-full ${SIDE_HEIGHT} bg-slate-400`}></div>
+             <div className={`absolute top-0 left-0 w-full h-1 bg-white/40`}></div>
+             <div className={`absolute top-[24px] left-0 w-full ${SIDE_HEIGHT} bg-orange-600`}></div>
         </div>
     );
 
@@ -303,16 +305,18 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
         elements.push(
             <div 
                 key={`future-${index}`} 
-                className={`absolute ${STAIR_WIDTH} ${STAIR_HEIGHT} bg-white transition-all duration-75`}
+                className={`absolute ${STAIR_WIDTH} ${STAIR_HEIGHT} bg-yellow-400 transition-all duration-75 shadow-lg`}
                 style={{ 
                     bottom: `${START_BOTTOM + currentY}px`, 
                     left: `calc(50% - 32px + ${currentX}px)`,
                     zIndex: 20 - index
                 }}
             >
-              <div className="w-full h-full bg-white border-t-2 border-indigo-100/50"></div>
-              {/* 3D Side Face - Darker to show depth */}
-              <div className={`absolute top-[24px] left-0 w-full ${SIDE_HEIGHT} bg-slate-200 border-b border-slate-300`}></div>
+              {/* Highlight for 3D effect */}
+              <div className="w-full h-full border-t-2 border-white/50"></div>
+              
+              {/* 3D Side Face - Dark distinct color for contrast against dark bg */}
+              <div className={`absolute top-[24px] left-0 w-full ${SIDE_HEIGHT} bg-orange-600 border-b border-orange-800`}></div>
             </div>
         );
     });
@@ -323,31 +327,35 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
   return (
     <div className={`relative h-full w-full overflow-hidden flex flex-col transition-colors duration-1000 ${getBackgroundClass()}`}>
         
-        {/* Sky Elements */}
+        {/* Sky Elements - Adjusted for Dark Mode */}
         <div className="absolute inset-0 pointer-events-none">
-             {/* Simple Clouds */}
-             <div className="absolute top-20 left-10 w-24 h-8 bg-white/20 rounded-full blur-lg animate-cloud-slow"></div>
-             <div className="absolute top-40 left-60 w-32 h-10 bg-white/10 rounded-full blur-md animate-cloud-fast"></div>
+             {/* Nebula / Lighting */}
+             <div className="absolute top-20 left-10 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl animate-cloud-slow"></div>
+             <div className="absolute bottom-40 right-10 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl animate-cloud-fast"></div>
+             {/* Stars */}
+             <div className="absolute top-1/4 left-1/4 w-1 h-1 bg-white rounded-full opacity-60"></div>
+             <div className="absolute top-1/3 right-1/3 w-1 h-1 bg-white rounded-full opacity-40"></div>
+             <div className="absolute bottom-1/3 left-1/2 w-1.5 h-1.5 bg-white rounded-full opacity-30"></div>
         </div>
 
         {/* HUD */}
         <div className="absolute top-0 left-0 right-0 p-4 z-50 flex flex-col gap-2">
             <div className="flex justify-between items-start">
                  {/* Best Score (Small) */}
-                 <div className="bg-black/20 backdrop-blur-md px-3 py-1 rounded-lg">
-                    <span className="text-xs font-bold text-white/80 uppercase">Best Score</span>
+                 <div className="bg-slate-800/50 backdrop-blur-md px-3 py-1 rounded-lg border border-slate-700">
+                    <span className="text-xs font-bold text-slate-300 uppercase">Best Score</span>
                  </div>
                  
                  {/* Current Score (Big) */}
                  <div className="flex flex-col items-end">
-                    <span className="text-6xl font-black text-white drop-shadow-md leading-none">{uiScore}</span>
+                    <span className="text-6xl font-black text-white drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)] leading-none">{uiScore}</span>
                  </div>
             </div>
             
             {/* Timer Bar */}
-            <div className="relative w-full h-4 bg-black/20 rounded-full overflow-hidden backdrop-blur-sm mt-1">
+            <div className="relative w-full h-4 bg-slate-800/50 rounded-full overflow-hidden backdrop-blur-sm mt-1 border border-slate-700/50">
                 <div 
-                    className={`h-full transition-all duration-100 ease-linear ${uiTimer < 30 ? 'bg-red-500' : 'bg-yellow-400'}`}
+                    className={`h-full transition-all duration-100 ease-linear ${uiTimer < 30 ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]' : 'bg-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.5)]'}`}
                     style={{ width: `${uiTimer}%` }}
                 ></div>
             </div>
@@ -371,20 +379,20 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
                     color={characterColor} 
                     facing={uiFacing} 
                     isDead={isDead} 
-                    className="drop-shadow-xl"
+                    className="drop-shadow-2xl"
                 />
             </div>
         </div>
 
         {/* Arcade Controls */}
-        <div className="h-auto pb-8 pt-4 px-4 z-50 bg-gradient-to-t from-slate-900/40 to-transparent">
+        <div className="h-auto pb-8 pt-4 px-4 z-50 bg-gradient-to-t from-black to-transparent">
             <div className="flex gap-6 max-w-md mx-auto items-end">
                 {/* Turn Button (Left) */}
                 <button 
-                    className="flex-1 h-24 bg-indigo-500 active:bg-indigo-600 rounded-2xl border-b-8 border-indigo-700 active:border-b-0 active:translate-y-2 transition-all shadow-xl flex flex-col items-center justify-center group"
+                    className="flex-1 h-24 bg-indigo-600 active:bg-indigo-700 rounded-2xl border-b-8 border-indigo-900 active:border-b-0 active:translate-y-2 transition-all shadow-xl shadow-indigo-900/40 flex flex-col items-center justify-center group"
                     onPointerDown={(e) => { e.preventDefault(); handleTurn(); }}
                 >
-                    <div className="bg-indigo-700/50 p-2 rounded-full mb-1 group-hover:scale-110 transition-transform">
+                    <div className="bg-indigo-800/50 p-2 rounded-full mb-1 group-hover:scale-110 transition-transform">
                         <i className="fa-solid fa-arrow-rotate-left text-2xl text-white"></i>
                     </div>
                     <span className="font-black text-white uppercase text-lg tracking-wider">Turn</span>
@@ -392,10 +400,10 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
 
                 {/* Climb Button (Right) */}
                 <button 
-                    className="flex-1 h-24 bg-pink-500 active:bg-pink-600 rounded-2xl border-b-8 border-pink-700 active:border-b-0 active:translate-y-2 transition-all shadow-xl flex flex-col items-center justify-center group"
+                    className="flex-1 h-24 bg-pink-600 active:bg-pink-700 rounded-2xl border-b-8 border-pink-900 active:border-b-0 active:translate-y-2 transition-all shadow-xl shadow-pink-900/40 flex flex-col items-center justify-center group"
                     onPointerDown={(e) => { e.preventDefault(); handleClimb(); }}
                 >
-                     <div className="bg-pink-700/50 p-2 rounded-full mb-1 group-hover:scale-110 transition-transform">
+                     <div className="bg-pink-800/50 p-2 rounded-full mb-1 group-hover:scale-110 transition-transform">
                         <i className="fa-solid fa-shoe-prints text-2xl text-white -rotate-90"></i>
                     </div>
                     <span className="font-black text-white uppercase text-lg tracking-wider">Climb</span>
@@ -403,7 +411,7 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
             </div>
             
             {/* Keyboard Hints */}
-            <div className="flex justify-between px-8 mt-2 text-white/60 text-xs font-bold">
+            <div className="flex justify-between px-8 mt-2 text-white/40 text-xs font-bold">
                  <span>[X] or [Left]</span>
                  <span>[Z] or [Right]</span>
             </div>
@@ -412,24 +420,24 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
         {/* Game Over Screen */}
         {isDead && (
             <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in p-6">
-                <div className="bg-white p-6 rounded-3xl shadow-2xl text-center w-full max-w-sm animate-shake">
-                    <h2 className="text-4xl font-black text-slate-800 mb-2 italic">GAME OVER</h2>
+                <div className="bg-slate-900 border border-slate-700 p-6 rounded-3xl shadow-2xl text-center w-full max-w-sm animate-shake">
+                    <h2 className="text-4xl font-black text-white mb-2 italic">GAME OVER</h2>
                     
-                    <div className="bg-slate-100 rounded-2xl p-6 mb-6">
-                        <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Score</div>
-                        <div className="text-7xl font-black text-indigo-600 tracking-tighter">{uiScore}</div>
+                    <div className="bg-slate-800 rounded-2xl p-6 mb-6 border border-slate-700">
+                        <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Score</div>
+                        <div className="text-7xl font-black text-indigo-400 tracking-tighter">{uiScore}</div>
                     </div>
                     
                     <div className="space-y-3">
                         <button 
                             onClick={() => { playSound('jump'); onGameOver(); }}
-                            className="w-full bg-green-500 text-white font-bold py-4 px-8 rounded-xl shadow-[0_4px_0_0_rgba(22,163,74,1)] hover:bg-green-600 active:shadow-none active:translate-y-[4px] transition-all flex items-center justify-center gap-2 text-lg"
+                            className="w-full bg-green-600 text-white font-bold py-4 px-8 rounded-xl shadow-[0_4px_0_0_rgba(22,163,74,1)] hover:bg-green-500 active:shadow-none active:translate-y-[4px] transition-all flex items-center justify-center gap-2 text-lg"
                         >
                             <i className="fa-solid fa-rotate-right"></i> RETRY
                         </button>
                         <button 
                             onClick={onGameOver}
-                            className="w-full bg-slate-200 text-slate-600 font-bold py-3 px-8 rounded-xl hover:bg-slate-300 transition-all"
+                            className="w-full bg-slate-700 text-slate-300 font-bold py-3 px-8 rounded-xl hover:bg-slate-600 transition-all"
                         >
                             Main Menu
                         </button>
