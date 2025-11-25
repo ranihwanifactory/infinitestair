@@ -11,29 +11,75 @@ interface GameProps {
 }
 
 // Game Constants
-const STEP_SIZE = 40; // Pixels
 const INITIAL_TIME = 100; // Percentage
-const TIME_DECAY = 0.4; // % per tick (speed increases)
-const TIME_BONUS = 2; // % added per step
+const TIME_DECAY = 0.5; // Base decay per tick
+const TIME_BONUS = 3.5; // Time added per step
+const MAX_TIME = 100;
+
+// Sound Synthesizer
+const playSound = (type: 'jump' | 'turn' | 'gameover') => {
+  const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+  if (!AudioContext) return;
+  
+  const ctx = new AudioContext();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+
+  const now = ctx.currentTime;
+
+  if (type === 'jump') {
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(150, now);
+    osc.frequency.exponentialRampToValueAtTime(600, now + 0.1);
+    gain.gain.setValueAtTime(0.1, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+    osc.start(now);
+    osc.stop(now + 0.1);
+  } else if (type === 'turn') {
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(300, now);
+    osc.frequency.exponentialRampToValueAtTime(500, now + 0.1);
+    gain.gain.setValueAtTime(0.1, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+    osc.start(now);
+    osc.stop(now + 0.1);
+  } else if (type === 'gameover') {
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(300, now);
+    osc.frequency.linearRampToValueAtTime(50, now + 0.5);
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.linearRampToValueAtTime(0, now + 0.5);
+    osc.start(now);
+    osc.stop(now + 0.5);
+  }
+};
 
 export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) => {
   const [score, setScore] = useState(0);
   const [timer, setTimer] = useState(INITIAL_TIME);
   const [isDead, setIsDead] = useState(false);
-  const [steps, setSteps] = useState<Direction[]>([]); // Future steps
+  const [steps, setSteps] = useState<Direction[]>([]); // The visible stair path
   const [playerFacing, setPlayerFacing] = useState<Direction>('right');
-  const [climbOffset, setClimbOffset] = useState(0); // For animation vertical
+  const [isAnimating, setIsAnimating] = useState(false);
   
-  // Audio refs (using simple oscillator if we wanted, but sticking to visual for now)
-  
+  // Background gradient based on score
+  const getBackgroundClass = () => {
+    if (score < 50) return 'bg-gradient-to-b from-sky-400 to-sky-100';
+    if (score < 100) return 'bg-gradient-to-b from-indigo-500 to-pink-400';
+    return 'bg-gradient-to-b from-slate-900 via-purple-900 to-indigo-900'; // Space
+  };
+
   // Initialize Stairs
   useEffect(() => {
     const initialSteps: Direction[] = [];
     let currentDir: Direction = 'right';
-    // Generate initial 20 steps
+    // Generate initial steps
     for (let i = 0; i < 20; i++) {
-        // 70% chance to continue same direction, 30% to switch
-        if (Math.random() > 0.7) {
+        // 50/50 chance to switch direction after the first few
+        if (i > 3 && Math.random() > 0.5) {
             currentDir = currentDir === 'left' ? 'right' : 'left';
         }
         initialSteps.push(currentDir);
@@ -42,6 +88,7 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
     setTimer(100);
     setScore(0);
     setIsDead(false);
+    setPlayerFacing('right');
   }, []);
 
   // Timer Logic
@@ -50,21 +97,25 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
     
     const interval = setInterval(() => {
       setTimer((prev) => {
-        const decay = TIME_DECAY + (score * 0.001); // Gets harder as you climb
-        const nextTime = prev - decay;
+        // Decay speeds up slightly as score increases
+        const currentDecay = TIME_DECAY + (Math.min(score, 200) * 0.002);
+        const nextTime = prev - currentDecay;
         if (nextTime <= 0) {
           handleDeath();
           return 0;
         }
         return nextTime;
       });
-    }, 50); // 20 ticks per second
+    }, 50);
 
     return () => clearInterval(interval);
   }, [isDead, score]);
 
   const handleDeath = async () => {
+    if (isDead) return; // Prevent double death
     setIsDead(true);
+    playSound('gameover');
+    
     // Save score
     try {
       await addDoc(collection(db, "scores"), {
@@ -77,118 +128,114 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
     } catch (e) {
       console.error("Error saving score", e);
     }
-    
-    // Wait a bit then show game over screen
-    setTimeout(() => {
-        onGameOver();
-    }, 1500);
   };
 
-  const addSteps = (count: number) => {
-    setSteps(prev => {
-        const newSteps = [...prev];
-        let lastDir = newSteps[newSteps.length - 1];
-        for(let i=0; i<count; i++) {
-            if (Math.random() > 0.6) {
-                lastDir = lastDir === 'left' ? 'right' : 'left';
-            }
-            newSteps.push(lastDir);
-        }
-        return newSteps;
-    });
-  };
+  const advanceGame = (newFacing: Direction) => {
+    const nextStepDirection = steps[0];
 
-  const handleMove = useCallback((direction: Direction) => {
-    if (isDead) return;
-
-    // The logic: 
-    // The "steps" array contains the direction of the NEXT step relative to the previous one.
-    // Index 0 is the step directly in front of the player.
+    // Check if the move is valid
+    // In this game style, the 'steps' array represents the direction of the step relative to the previous one.
+    // However, for rendering and logic simplicity, let's treat `steps[0]` as "Where the next step IS".
     
-    const correctDirection = steps[0];
-    setPlayerFacing(direction);
-
-    if (direction === correctDirection) {
+    if (newFacing === nextStepDirection) {
         // Correct Move
         setScore(s => s + 1);
-        setTimer(t => Math.min(100, t + TIME_BONUS));
-        setClimbOffset(prev => prev + 1); // Trigger animation effect logic if needed
+        setTimer(t => Math.min(MAX_TIME, t + TIME_BONUS));
         
-        // Remove the stepped-on step and add a new one at the end
+        // Add animation trigger
+        setIsAnimating(true);
+        setTimeout(() => setIsAnimating(false), 50);
+
+        // Update stairs: Remove current, add new at end
         setSteps(prev => {
             const next = prev.slice(1);
-            // Replenish buffer
-            if (next.length < 10) {
-                 // Add logic helper
-                 let lastDir = next[next.length - 1];
-                 for(let i=0; i<5; i++) {
-                     if(Math.random() > 0.6) lastDir = lastDir === 'left' ? 'right' : 'left';
-                     next.push(lastDir);
-                 }
+            let lastDir = next[next.length - 1];
+            
+            // Logic for generating new stairs: clusters of same direction
+            // 70% chance to continue same direction, 30% to switch
+            if (Math.random() > 0.7) {
+                lastDir = lastDir === 'left' ? 'right' : 'left';
             }
+            next.push(lastDir);
             return next;
         });
 
     } else {
-        // Wrong Move
+        // Wrong Direction
         handleDeath();
     }
-  }, [isDead, steps, score]);
+  };
+
+  const handleClimb = useCallback(() => {
+    if (isDead) return;
+    playSound('jump');
+    // Climb moves in the CURRENT facing direction
+    advanceGame(playerFacing);
+  }, [isDead, playerFacing, steps, score]);
+
+  const handleTurn = useCallback(() => {
+    if (isDead) return;
+    playSound('turn');
+    // Turn switches direction THEN moves
+    const newFacing = playerFacing === 'left' ? 'right' : 'left';
+    setPlayerFacing(newFacing);
+    advanceGame(newFacing);
+  }, [isDead, playerFacing, steps, score]);
 
   // Keyboard controls
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'ArrowLeft') handleMove('left');
-        if (e.key === 'ArrowRight') handleMove('right');
+        if (e.key === 'ArrowUp' || e.key === 'z') handleClimb(); // Button A
+        if (e.key === 'ArrowDown' || e.key === 'x') handleTurn(); // Button B
+        // Also support Left/Right if users intuitively want to map them (though less accurate for this mode)
+        // Mapping Left/Right keys to "Turn" and "Climb" can be confusing. 
+        // Let's map Space to Jump/Climb and Shift to Turn? 
+        // Let's stick to Arrow keys for "Screen Side" mapping which is common on PC.
+        // Right side of keyboard = Climb, Left side = Turn.
+        if (e.key === 'ArrowRight') handleClimb();
+        if (e.key === 'ArrowLeft') handleTurn();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleMove]);
+  }, [handleClimb, handleTurn]);
 
-  // Render logic for stairs
-  // We render the player static at the bottom center.
-  // We render the stairs relative to the player.
-  // steps[0] is the immediate next step.
-  // We need to visualize previous steps for continuity? 
-  // Simplified: Just render steps[0] to steps[N] going UP.
-  // We need to track the cumulative X position for rendering.
-  
+  // Render logic
   const renderStairs = () => {
     let currentX = 0;
     let currentY = 0;
-    
     const elements = [];
-    
-    // Render the "current" platform player is standing on (visually index -1)
+
+    // The starting platform
     elements.push(
-        <div key="start" className="absolute w-[60px] h-[20px] bg-slate-300 border-b-4 border-slate-400 rounded-sm"
-             style={{ bottom: '80px', left: 'calc(50% - 30px)', zIndex: 10 }} />
+        <div key="start" className="absolute w-[80px] h-[40px] bg-slate-100 border-4 border-slate-300 rounded-lg shadow-lg"
+             style={{ bottom: '120px', left: 'calc(50% - 40px)', zIndex: 20 }} />
     );
 
     // Render upcoming steps
-    // steps array is just directions. We need to accumulate position.
-    // If step[0] is 'left', it is placed at (-STEP_X, +STEP_Y).
-    
-    steps.slice(0, 12).forEach((dir, index) => {
+    // We only render a certain amount to keep DOM light
+    steps.slice(0, 10).forEach((dir, index) => {
         if (dir === 'left') {
-            currentX -= 40; // Move Left
+            currentX -= 60; // Move Left
         } else {
-            currentX += 40; // Move Right
+            currentX += 60; // Move Right
         }
-        currentY += 40; // Move Up
+        currentY += 50; // Move Up
 
         elements.push(
             <div 
                 key={index} 
-                className="absolute w-[60px] h-[20px] bg-slate-300 border-b-4 border-slate-400 rounded-sm shadow-sm transition-all duration-100"
+                className={`absolute w-[80px] h-[40px] bg-white border-4 rounded-lg shadow-lg transition-all duration-100 
+                  ${dir === 'left' ? 'rounded-tr-none' : 'rounded-tl-none'}
+                  border-indigo-100
+                `}
                 style={{ 
-                    bottom: `${80 + currentY}px`, 
-                    left: `calc(50% - 30px + ${currentX}px)`,
-                    zIndex: 10 - index
+                    bottom: `${120 + currentY}px`, 
+                    left: `calc(50% - 40px + ${currentX}px)`,
+                    zIndex: 20 - index
                 }}
             >
-                {/* Optional decoration */}
-                <div className="w-full h-full bg-white/20"></div>
+              {/* Stair Top Pattern */}
+              <div className="w-full h-full bg-indigo-50/50"></div>
             </div>
         );
     });
@@ -197,90 +244,127 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
   };
 
   return (
-    <div className="relative h-full w-full bg-sky-100 overflow-hidden flex flex-col">
+    <div className={`relative h-full w-full overflow-hidden flex flex-col transition-colors duration-1000 ${getBackgroundClass()}`}>
+        
+        {/* Sky Elements */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+            {score < 100 ? (
+               <>
+                 <div className="absolute top-10 left-[-20%] w-32 h-12 bg-white/20 blur-md rounded-full animate-cloud-slow"></div>
+                 <div className="absolute top-40 left-[-40%] w-48 h-16 bg-white/10 blur-xl rounded-full animate-cloud-fast"></div>
+               </>
+            ) : (
+                <>
+                  <div className="absolute top-10 right-10 w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                  <div className="absolute top-1/3 left-1/4 w-1 h-1 bg-white rounded-full opacity-50"></div>
+                  <div className="absolute top-20 left-1/2 w-3 h-3 bg-yellow-100 rounded-full blur-sm opacity-80"></div>
+                </>
+            )}
+        </div>
+
         {/* HUD */}
-        <div className="absolute top-0 left-0 right-0 p-4 z-50 flex flex-col gap-2">
-            <div className="flex justify-between items-end">
-                <span className="text-4xl font-black text-slate-800 drop-shadow-sm">{score}</span>
-                <span className={`text-xl font-bold ${timer < 30 ? 'text-red-500 animate-pulse' : 'text-slate-500'}`}>
-                    TIME
-                </span>
+        <div className="absolute top-0 left-0 right-0 p-6 z-50 flex flex-col gap-2">
+            <div className="flex justify-between items-center">
+                 <div className="bg-black/20 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/20">
+                    <span className="text-sm font-bold text-white uppercase tracking-wider block">Score</span>
+                    <span className="text-4xl font-black text-white drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)]">{score}</span>
+                 </div>
+                 {/* High Score Preview could go here */}
             </div>
+            
             {/* Timer Bar */}
-            <div className="w-full h-4 bg-slate-200 rounded-full overflow-hidden border-2 border-white shadow-sm">
+            <div className="relative w-full h-6 bg-black/30 rounded-full overflow-hidden border-2 border-white/30 backdrop-blur-sm mt-2">
                 <div 
-                    className={`h-full transition-all duration-100 linear ${timer < 30 ? 'bg-red-500' : 'bg-green-500'}`}
+                    className={`h-full transition-all duration-100 ease-linear ${timer < 30 ? 'bg-red-500 animate-pulse' : 'bg-yellow-400'}`}
                     style={{ width: `${timer}%` }}
                 ></div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                    <i className="fa-solid fa-bolt text-xs text-white/50"></i>
+                </div>
             </div>
         </div>
 
-        {/* Game World */}
-        <div className="flex-1 relative mt-20">
-            {/* Background Decor */}
-            <div className="absolute inset-0 flex items-end justify-center opacity-10 pointer-events-none">
-                 <i className="fa-solid fa-city text-9xl text-indigo-900 transform translate-y-10"></i>
+        {/* Game World - Fixed Player, Moving World */}
+        <div className="flex-1 relative mt-0 overflow-visible">
+            {/* 
+               To simulate the camera following the player, we don't move the player up.
+               We keep the player fixed and render the stairs relative to the player.
+               However, to show the "Climb" animation, we can shift the world down or animate the player briefly.
+             */}
+            <div className="absolute inset-0 flex items-end justify-center pb-32 transition-transform duration-75">
+                 {renderStairs()}
             </div>
-
-            {/* Stairs Container - Moves down as we animate? 
-                Actually, simpler to keep player static and just re-render stairs based on the sliced array. 
-                React is fast enough. 
-            */}
-            {renderStairs()}
 
             {/* Player */}
             <div 
-                className="absolute transition-all duration-100"
-                style={{ 
-                    bottom: '100px', // On top of the start platform
-                    left: 'calc(50% - 32px)', // Centered (width is 64px)
-                    zIndex: 20
-                }}
+                className={`absolute bottom-[160px] left-[calc(50%-32px)] z-30 transition-transform duration-75 ${isAnimating ? 'scale-110 -translate-y-2' : 'scale-100'}`}
             >
-                <Character color={characterColor} facing={playerFacing} isDead={isDead} />
-                
-                {/* Sweat particles if time is low */}
-                {timer < 30 && !isDead && (
-                    <div className="absolute -top-4 right-0 text-blue-400 animate-bounce text-xl">
-                        <i className="fa-solid fa-droplet"></i>
-                    </div>
-                )}
+                <Character 
+                    color={characterColor} 
+                    facing={playerFacing} 
+                    isDead={isDead} 
+                    className="drop-shadow-2xl"
+                />
+                {/* Visual indicator of facing */}
+                <div className={`absolute top-0 ${playerFacing === 'left' ? '-left-8' : '-right-8'} transition-all duration-100`}>
+                     <div className="bg-white/90 px-2 py-1 rounded-lg text-xs font-bold text-indigo-600 shadow-sm animate-pulse">
+                        {playerFacing === 'left' ? 'LOOK' : 'LOOK'}
+                     </div>
+                </div>
             </div>
             
-            {/* Fall effect/Fog */}
-             <div className="absolute bottom-0 w-full h-32 bg-gradient-to-t from-sky-100 to-transparent z-30"></div>
+            {/* Fog/Clouds at bottom */}
+             <div className="absolute bottom-0 w-full h-48 bg-gradient-to-t from-white/40 to-transparent z-40 pointer-events-none"></div>
         </div>
 
         {/* Controls */}
-        <div className="h-48 z-40 grid grid-cols-2 gap-2 p-2 pb-6 bg-white/30 backdrop-blur-md">
-            <button 
-                className="bg-white hover:bg-slate-50 border-b-8 border-slate-200 active:border-b-0 active:translate-y-[8px] rounded-2xl flex flex-col items-center justify-center gap-2 transition-all group"
-                onPointerDown={(e) => { e.preventDefault(); handleMove('left'); }}
-            >
-                <i className="fa-solid fa-arrow-left text-4xl text-slate-400 group-hover:text-indigo-500 transition-colors"></i>
-                <span className="font-black text-slate-400 uppercase tracking-widest">Left</span>
-            </button>
-            <button 
-                className="bg-white hover:bg-slate-50 border-b-8 border-slate-200 active:border-b-0 active:translate-y-[8px] rounded-2xl flex flex-col items-center justify-center gap-2 transition-all group"
-                onPointerDown={(e) => { e.preventDefault(); handleMove('right'); }}
-            >
-                 <i className="fa-solid fa-arrow-right text-4xl text-slate-400 group-hover:text-indigo-500 transition-colors"></i>
-                 <span className="font-black text-slate-400 uppercase tracking-widest">Right</span>
-            </button>
+        <div className="h-auto pb-8 pt-4 px-4 z-50 bg-white/10 backdrop-blur-md border-t border-white/20">
+            <div className="flex gap-4 max-w-md mx-auto">
+                {/* Turn Button */}
+                <button 
+                    className="flex-1 bg-gradient-to-b from-indigo-500 to-indigo-700 hover:from-indigo-400 hover:to-indigo-600 active:translate-y-2 active:border-b-0 border-b-8 border-indigo-900 rounded-3xl p-6 flex flex-col items-center justify-center gap-2 transition-all shadow-xl group touch-manipulation"
+                    onPointerDown={(e) => { e.preventDefault(); handleTurn(); }}
+                >
+                    <i className="fa-solid fa-arrow-rotate-left text-4xl text-white group-hover:scale-110 transition-transform"></i>
+                    <span className="font-black text-white uppercase tracking-wider text-sm">Turn</span>
+                    <span className="text-[10px] text-indigo-200">Switch & Climb</span>
+                </button>
+
+                {/* Climb Button */}
+                <button 
+                    className="flex-1 bg-gradient-to-b from-pink-500 to-pink-700 hover:from-pink-400 hover:to-pink-600 active:translate-y-2 active:border-b-0 border-b-8 border-pink-900 rounded-3xl p-6 flex flex-col items-center justify-center gap-2 transition-all shadow-xl group touch-manipulation"
+                    onPointerDown={(e) => { e.preventDefault(); handleClimb(); }}
+                >
+                     <i className="fa-solid fa-shoe-prints text-4xl text-white group-hover:scale-110 transition-transform -rotate-90"></i>
+                     <span className="font-black text-white uppercase tracking-wider text-sm">Jump</span>
+                     <span className="text-[10px] text-pink-200">Climb Up</span>
+                </button>
+            </div>
+            <div className="text-center mt-2 text-white/60 text-xs font-semibold">
+                Tap buttons or use Arrow Keys
+            </div>
         </div>
 
         {/* Game Over Overlay */}
         {isDead && (
-            <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-fade-in">
-                <div className="bg-white p-8 rounded-3xl shadow-2xl text-center transform scale-110">
-                    <h2 className="text-4xl font-black text-slate-800 mb-2">GAME OVER</h2>
-                    <p className="text-slate-500 mb-6">You fell!</p>
-                    <div className="text-6xl font-black text-indigo-600 mb-8">{score}</div>
+            <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-6">
+                <div className="bg-white p-8 rounded-3xl shadow-2xl text-center w-full max-w-sm animate-shake border-4 border-slate-200">
+                    <div className="inline-block p-4 rounded-full bg-red-100 mb-4">
+                        <i className="fa-solid fa-skull text-4xl text-red-500"></i>
+                    </div>
+                    <h2 className="text-3xl font-black text-slate-800 mb-2 uppercase italic transform -skew-x-6">Wasted</h2>
+                    <p className="text-slate-500 mb-6 font-medium">You missed a step!</p>
+                    
+                    <div className="bg-slate-100 rounded-2xl p-4 mb-8">
+                        <div className="text-sm text-slate-500 font-bold uppercase">Final Score</div>
+                        <div className="text-6xl font-black text-indigo-600 tracking-tighter">{score}</div>
+                    </div>
+                    
                     <button 
-                        onClick={onGameOver}
-                        className="bg-indigo-600 text-white font-bold py-4 px-12 rounded-full shadow-lg hover:bg-indigo-700 transition-transform hover:scale-105"
+                        onClick={() => { playSound('jump'); onGameOver(); }}
+                        className="w-full bg-indigo-600 text-white font-bold py-4 px-8 rounded-2xl shadow-[0_6px_0_0_rgba(79,70,229,1)] hover:bg-indigo-500 active:shadow-none active:translate-y-[6px] transition-all flex items-center justify-center gap-2"
                     >
-                        Try Again
+                        <i className="fa-solid fa-rotate-right"></i> Play Again
                     </button>
                 </div>
             </div>

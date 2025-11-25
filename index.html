@@ -20,6 +20,28 @@
         overscroll-behavior: none;
         touch-action: manipulation;
       }
+
+      /* Animations */
+      @keyframes float-cloud {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100vw); }
+      }
+      
+      .animate-cloud-slow {
+        animation: float-cloud 20s linear infinite;
+      }
+      .animate-cloud-fast {
+        animation: float-cloud 15s linear infinite;
+      }
+      
+      @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-2px) rotate(-1deg); }
+        75% { transform: translateX(2px) rotate(1deg); }
+      }
+      .animate-shake {
+        animation: shake 0.2s ease-in-out;
+      }
     </style>
   <script type="importmap">
 {
