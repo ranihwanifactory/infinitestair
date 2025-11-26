@@ -16,12 +16,25 @@ const TIME_DECAY_BASE = 0.5;
 const TIME_BONUS = 4.0;
 const MAX_TIME = 100;
 
-// Sound Synthesizer - Snappier sounds
+// Singleton AudioContext to prevent "too many contexts" error and sound dropping
+let audioContext: AudioContext | null = null;
+
+const getAudioContext = () => {
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+  }
+  return audioContext;
+};
+
+// Sound Synthesizer - "Pyong" Arcade Sounds
 const playSound = (type: 'jump' | 'turn' | 'gameover') => {
-  const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-  if (!AudioContext) return;
+  const ctx = getAudioContext();
   
-  const ctx = new AudioContext();
+  // Ensure context is running (browsers suspend it until user interaction)
+  if (ctx.state === 'suspended') {
+    ctx.resume();
+  }
+
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
 
@@ -31,27 +44,36 @@ const playSound = (type: 'jump' | 'turn' | 'gameover') => {
   const now = ctx.currentTime;
 
   if (type === 'jump') {
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(200, now);
-    osc.frequency.exponentialRampToValueAtTime(600, now + 0.08);
-    gain.gain.setValueAtTime(0.1, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
-    osc.start(now);
-    osc.stop(now + 0.08);
-  } else if (type === 'turn') {
-    osc.type = 'triangle';
+    // Sharp "Pyong" (Rising pitch)
+    osc.type = 'sine';
     osc.frequency.setValueAtTime(400, now);
-    osc.frequency.exponentialRampToValueAtTime(800, now + 0.08);
-    gain.gain.setValueAtTime(0.1, now);
+    osc.frequency.exponentialRampToValueAtTime(800, now + 0.1);
+    
+    gain.gain.setValueAtTime(0.3, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+    
+    osc.start(now);
+    osc.stop(now + 0.1);
+  } else if (type === 'turn') {
+    // "Zip" (Sharper, faster rise)
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(500, now);
+    osc.frequency.exponentialRampToValueAtTime(1000, now + 0.08);
+    
+    gain.gain.setValueAtTime(0.3, now);
     gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+    
     osc.start(now);
     osc.stop(now + 0.08);
   } else if (type === 'gameover') {
+    // "Crash" (Falling pitch saw)
     osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(300, now);
+    osc.frequency.setValueAtTime(400, now);
     osc.frequency.linearRampToValueAtTime(50, now + 0.5);
-    gain.gain.setValueAtTime(0.2, now);
+    
+    gain.gain.setValueAtTime(0.3, now);
     gain.gain.linearRampToValueAtTime(0, now + 0.5);
+    
     osc.start(now);
     osc.stop(now + 0.5);
   }
@@ -85,8 +107,8 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
     return 'bg-gradient-to-b from-black via-slate-900 to-black';
   };
 
-  // Initialize Game
-  useEffect(() => {
+  // Reset/Start Game Logic
+  const resetGame = useCallback(() => {
     const initialSteps: Direction[] = [];
     let currentDir: Direction = 'right';
     for (let i = 0; i < 30; i++) {
@@ -113,7 +135,13 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
     setUiTimer(100);
     setUiPastSteps([]);
     setIsDead(false);
+    setIsAnimating(false);
   }, []);
+
+  // Initialize Game on Mount
+  useEffect(() => {
+    resetGame();
+  }, [resetGame]);
 
   // Timer Logic
   useEffect(() => {
@@ -464,7 +492,7 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
                     
                     <div className="space-y-3">
                         <button 
-                            onClick={() => { playSound('jump'); onGameOver(); }}
+                            onClick={() => { playSound('jump'); resetGame(); }}
                             className="w-full bg-green-600 text-white font-bold py-4 px-8 rounded-xl shadow-[0_4px_0_0_rgba(22,163,74,1)] hover:bg-green-500 active:shadow-none active:translate-y-[4px] transition-all flex items-center justify-center gap-2 text-lg"
                         >
                             <i className="fa-solid fa-rotate-right"></i> 다시하기
