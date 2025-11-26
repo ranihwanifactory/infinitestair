@@ -16,8 +16,9 @@ const TIME_DECAY_BASE = 0.5;
 const TIME_BONUS = 4.0;
 const MAX_TIME = 100;
 
-// Singleton AudioContext to prevent "too many contexts" error and sound dropping
+// Singleton AudioContext
 let audioContext: AudioContext | null = null;
+let noiseBuffer: AudioBuffer | null = null; // Reusable noise buffer for Hi-hats
 
 const getAudioContext = () => {
   if (!audioContext) {
@@ -26,14 +27,24 @@ const getAudioContext = () => {
   return audioContext;
 };
 
-// Sound Synthesizer - "Pyong" Arcade Sounds
+// Create White Noise Buffer for Hi-hats/Percussion
+const getNoiseBuffer = (ctx: AudioContext) => {
+    if (!noiseBuffer) {
+        const bufferSize = ctx.sampleRate * 2; // 2 seconds of noise
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+        noiseBuffer = buffer;
+    }
+    return noiseBuffer;
+};
+
+// Sound Synthesizer - "Pyong" Arcade Sounds (SFX)
 const playSound = (type: 'jump' | 'turn' | 'gameover') => {
   const ctx = getAudioContext();
-  
-  // Ensure context is running (browsers suspend it until user interaction)
-  if (ctx.state === 'suspended') {
-    ctx.resume();
-  }
+  if (ctx.state === 'suspended') ctx.resume();
 
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
@@ -49,7 +60,7 @@ const playSound = (type: 'jump' | 'turn' | 'gameover') => {
     osc.frequency.setValueAtTime(400, now);
     osc.frequency.exponentialRampToValueAtTime(800, now + 0.1);
     
-    gain.gain.setValueAtTime(0.3, now);
+    gain.gain.setValueAtTime(0.3, now); // SFX Volume
     gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
     
     osc.start(now);
@@ -60,13 +71,13 @@ const playSound = (type: 'jump' | 'turn' | 'gameover') => {
     osc.frequency.setValueAtTime(500, now);
     osc.frequency.exponentialRampToValueAtTime(1000, now + 0.08);
     
-    gain.gain.setValueAtTime(0.3, now);
+    gain.gain.setValueAtTime(0.3, now); // SFX Volume
     gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
     
     osc.start(now);
     osc.stop(now + 0.08);
   } else if (type === 'gameover') {
-    // "Crash" (Falling pitch saw)
+    // "Crash"
     osc.type = 'sawtooth';
     osc.frequency.setValueAtTime(400, now);
     osc.frequency.linearRampToValueAtTime(50, now + 0.5);
@@ -77,6 +88,77 @@ const playSound = (type: 'jump' | 'turn' | 'gameover') => {
     osc.start(now);
     osc.stop(now + 0.5);
   }
+};
+
+// --- BGM Synthesizer Instruments ---
+
+const playKick = (ctx: AudioContext, time: number) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(150, time);
+    osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
+    
+    gain.gain.setValueAtTime(0.4, time); // Kick Volume
+    gain.gain.exponentialRampToValueAtTime(0.01, time + 0.5);
+    
+    osc.start(time);
+    osc.stop(time + 0.5);
+};
+
+const playHiHat = (ctx: AudioContext, time: number, open: boolean) => {
+    const buffer = getNoiseBuffer(ctx);
+    if (!buffer) return;
+    
+    const source = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+
+    source.buffer = buffer;
+    
+    // High pass filter for crisp sound
+    filter.type = 'highpass';
+    filter.frequency.value = 7000;
+
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    
+    const decay = open ? 0.2 : 0.05;
+    const vol = open ? 0.15 : 0.1;
+
+    gain.gain.setValueAtTime(vol, time);
+    gain.gain.exponentialRampToValueAtTime(0.01, time + decay);
+    
+    source.start(time);
+    source.stop(time + decay);
+};
+
+const playBass = (ctx: AudioContext, time: number, freq: number) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+    
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(freq, time);
+
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(400, time);
+    filter.Q.value = 5;
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    
+    gain.gain.setValueAtTime(0.15, time);
+    gain.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
+    
+    osc.start(time);
+    osc.stop(time + 0.2);
 };
 
 export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) => {
@@ -98,6 +180,19 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
   const [uiPastSteps, setUiPastSteps] = useState<Direction[]>([]);
   const [isDead, setIsDead] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
+
+  // BGM State Refs
+  const bgmRef = useRef<{
+    isPlaying: boolean;
+    timerID: number | null;
+    nextNoteTime: number;
+    current16thNote: number;
+  }>({
+    isPlaying: false,
+    timerID: null,
+    nextNoteTime: 0,
+    current16thNote: 0
+  });
 
   // Background gradient - Dark Mode Theme
   const getBackgroundClass = () => {
@@ -136,12 +231,87 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
     setUiPastSteps([]);
     setIsDead(false);
     setIsAnimating(false);
+    
+    // Restart BGM if needed (logic handled in useEffect)
   }, []);
 
   // Initialize Game on Mount
   useEffect(() => {
     resetGame();
   }, [resetGame]);
+
+  // BGM Logic
+  useEffect(() => {
+    const ctx = getAudioContext();
+    const bgm = bgmRef.current;
+    
+    const TEMPO = 150; // Fast paced!
+    const LOOKAHEAD = 25.0; // ms
+    const SCHEDULE_AHEAD_TIME = 0.1; // s
+
+    const scheduleNote = (beatNumber: number, time: number) => {
+        // Simple Driving Techno Loop
+        
+        // Kick: 4/4 (0, 4, 8, 12)
+        if (beatNumber % 4 === 0) {
+            playKick(ctx, time);
+        }
+
+        // Hi-Hat: 8th notes (0, 2, 4, 6...) with accent on off-beat
+        if (beatNumber % 2 === 0) {
+             // Accent the off-beats (2, 6, 10, 14) -> beatNumber % 4 === 2
+             playHiHat(ctx, time, beatNumber % 4 === 2); 
+        }
+
+        // Bass: Off-beat driving (2, 6, 10, 14) + some syncopation
+        if (beatNumber % 4 === 2) {
+             // Low G
+             playBass(ctx, time, 98.00); 
+        } else if (beatNumber % 16 === 14) {
+             // Low G octave up
+             playBass(ctx, time, 196.00);
+        }
+    };
+
+    const nextNote = () => {
+        const secondsPerBeat = 60.0 / TEMPO;
+        bgm.nextNoteTime += 0.25 * secondsPerBeat; // Advance by 16th note
+        bgm.current16thNote++;
+        if (bgm.current16thNote === 16) {
+            bgm.current16thNote = 0;
+        }
+    };
+
+    const scheduler = () => {
+        if (!bgm.isPlaying) return;
+
+        // While there are notes that will need to play before the next interval, schedule them
+        while (bgm.nextNoteTime < ctx.currentTime + SCHEDULE_AHEAD_TIME) {
+            scheduleNote(bgm.current16thNote, bgm.nextNoteTime);
+            nextNote();
+        }
+        bgm.timerID = window.setTimeout(scheduler, LOOKAHEAD);
+    };
+
+    // Start BGM
+    if (!isDead) {
+        if (ctx.state === 'suspended') {
+            ctx.resume().catch(e => console.log(e));
+        }
+        bgm.isPlaying = true;
+        bgm.current16thNote = 0;
+        bgm.nextNoteTime = ctx.currentTime + 0.05;
+        scheduler();
+    } else {
+        bgm.isPlaying = false;
+        if (bgm.timerID) clearTimeout(bgm.timerID);
+    }
+
+    return () => {
+        bgm.isPlaying = false;
+        if (bgm.timerID) clearTimeout(bgm.timerID);
+    };
+  }, [isDead]); // Re-run when death state changes (stops music)
 
   // Timer Logic
   useEffect(() => {
@@ -151,8 +321,10 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
       if (gameStateRef.current.isDead) return;
 
       const current = gameStateRef.current;
-      // Decay accelerates slightly
-      const decay = TIME_DECAY_BASE + (Math.min(current.score, 200) * 0.003);
+      
+      // Decay accelerates more aggressively as score increases
+      const decay = TIME_DECAY_BASE + (Math.min(current.score, 500) * 0.005);
+      
       current.timer -= decay;
 
       if (current.timer <= 0) {
@@ -168,18 +340,16 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
   // Kakao AdFit Script Loading
   useEffect(() => {
     try {
-      // Check if script already exists to avoid duplicate loading
       if (!document.querySelector('script[src="//t1.daumcdn.net/kas/static/ba.min.js"]')) {
         const script = document.createElement('script');
         script.src = "//t1.daumcdn.net/kas/static/ba.min.js";
         script.async = true;
         document.body.appendChild(script);
       } else {
-        // If script exists, re-trigger ad refresh if possible, or assume it handles new inserts
         // @ts-ignore
         if (window.kakao_ad_runner) {
            // @ts-ignore
-           // window.kakao_ad_runner(); // Uncomment if ad refresh is needed explicitly
+           // window.kakao_ad_runner(); 
         }
       }
     } catch (e) {
@@ -192,10 +362,14 @@ export const Game: React.FC<GameProps> = ({ user, characterColor, onGameOver }) 
     gameStateRef.current.isDead = true;
     setIsDead(true);
     playSound('gameover');
+    
+    // Stop BGM immediately visually (logic handled in useEffect cleanup/dep)
+    if (bgmRef.current.timerID) clearTimeout(bgmRef.current.timerID);
+    bgmRef.current.isPlaying = false;
 
     const finalScore = gameStateRef.current.score;
     
-    // Save Score Logic (Highest Score Only)
+    // Save Score Logic
     try {
       const userScoreRef = doc(db, "scores", user.uid);
       const docSnap = await getDoc(userScoreRef);
