@@ -1,14 +1,48 @@
-self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open('infinite-stairs-v1').then((cache) => cache.addAll([
-      '/',
-      '/index.html',
-    ])),
+const CACHE_NAME = 'infinite-stairs-v2';
+const urlsToCache = [
+  '/',
+  '/index.html',
+];
+
+self.addEventListener('install', (event) => {
+  // Perform install steps
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then((cache) => {
+        return cache.addAll(urlsToCache);
+      })
+      .catch((err) => {
+        console.warn('Cache addAll failed', err);
+      })
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request)
+      .then((response) => {
+        // Cache hit - return response
+        if (response) {
+          return response;
+        }
+        return fetch(event.request);
+      })
   );
 });
 
-self.addEventListener('fetch', (e) => {
-  e.respondWith(
-    caches.match(e.request).then((response) => response || fetch(e.request)),
+self.addEventListener('activate', (event) => {
+  const cacheWhitelist = [CACHE_NAME];
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheWhitelist.indexOf(cacheName) === -1) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
   );
+  self.clients.claim();
 });
