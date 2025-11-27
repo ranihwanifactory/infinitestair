@@ -14,7 +14,6 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ onBack }) => {
   useEffect(() => {
     const fetchScores = async () => {
       try {
-        // Attempt 1: Server-side sorting (requires Firestore Index)
         const q = query(collection(db, "scores"), orderBy("score", "desc"), limit(20));
         const querySnapshot = await getDocs(q);
         const fetchedScores: ScoreEntry[] = [];
@@ -23,27 +22,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ onBack }) => {
         });
         setScores(fetchedScores);
       } catch (error) {
-        console.warn("Server-side sort failed (likely missing index). Falling back to client-side sort.", error);
-        
-        try {
-            // Attempt 2: Fallback to Client-side sorting (Reads up to 100 recent docs)
-            // This works without specific indexes
-            const qFallback = query(collection(db, "scores"), limit(100));
-            const querySnapshot = await getDocs(qFallback);
-            const fetchedScores: ScoreEntry[] = [];
-            
-            querySnapshot.forEach((doc) => {
-              fetchedScores.push({ id: doc.id, ...doc.data() } as ScoreEntry);
-            });
-            
-            // Sort manually
-            fetchedScores.sort((a, b) => b.score - a.score);
-            
-            // Take top 20
-            setScores(fetchedScores.slice(0, 20));
-        } catch (fallbackError) {
-            console.error("Error fetching leaderboard: ", fallbackError);
-        }
+        console.error("Error fetching leaderboard: ", error);
       } finally {
         setLoading(false);
       }
